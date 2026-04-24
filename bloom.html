@@ -2060,8 +2060,14 @@ function SettingsTab({T,onTheme,onName,userName,doExp,accs,onAcc,onAddAcc,onDelA
             </button>
           ))}
         </div>
-        <button onClick={()=>setDarkMode(d=>!d)} style={{width:"100%",marginTop:9,padding:"9px",borderRadius:10,border:`1.5px solid ${T.div}`,background:"transparent",fontSize:13,color:T.text,cursor:"pointer"}}>
-          {darkMode?"☀️ Switch to Light Mode":"🌙 Switch to Dark Mode"}
+        <button onClick={()=>{
+          const pairs={bloom:"midnight",midnight:"bloom",stone:"carbon",carbon:"stone"};
+          const cur=localStorage.getItem("bloomTheme")||"bloom";
+          const next=pairs[cur]||"midnight";
+          onTheme(next);
+          setDarkMode(!T.dark);
+        }} style={{width:"100%",marginTop:9,padding:"9px",borderRadius:10,border:`1.5px solid ${T.div}`,background:"transparent",fontSize:13,color:T.text,cursor:"pointer"}}>
+          {T.dark?"☀️ Switch to Light Mode":"🌙 Switch to Dark Mode"}
         </button>
       </Card>
 
