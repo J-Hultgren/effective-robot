@@ -1,0 +1,18 @@
+{
+  "name": "Bloom — Personal Finance",
+  "short_name": "Bloom",
+  "description": "Track spending, manage debt, and plan your future.",
+  "start_url": "./bloom.html",
+  "display": "standalone",
+  "background_color": "#F9F3EE",
+  "theme_color": "#C9907A",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
