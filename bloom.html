@@ -12,10 +12,10 @@
 <meta name="apple-mobile-web-app-title" content="Bloom"/>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='28'>🌸</text></svg>"/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-tap-highlight-color:transparent}
@@ -41,6 +41,8 @@ const SB=window.supabase.createClient(
   "https://irmtvjxlntozigbqxhvm.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlybXR2anhsbnRvemlnYnF4aHZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTkzMTQsImV4cCI6MjA5MjQzNTMxNH0.nyIZx7Z0GnHEIlZpBlN6TzHHsf7tGuhdvWECdpcQ-a0"
 );
+
+
 
 // ── Themes ────────────────────────────────────────────────────────
 const THEMES={
