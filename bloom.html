@@ -99,7 +99,7 @@ const CATS0=[
   {id:"tp_lc",lbl:"TerraPower – LC (weekly $2,080)",ico:"💼",g:"income",def:8320,inc:true,rec:false},
   {id:"tp_sc",lbl:"TerraPower – SCU (weekly $425)",ico:"💼",g:"income",def:1700,inc:true,rec:false},
   {id:"mort",lbl:"Mortgage",ico:"🏠",g:"housing",def:2500,rec:true},
-  {id:"eq",lbl:"SCU Home Equity",ico:"🏠",g:"housing",def:850,rec:true},
+  {id:"eq",lbl:"SCU Home Equity",ico:"🏠",g:"housing",def:1000,rec:true},
   {id:"ins",lbl:"Insurance",ico:"🛡️",g:"housing",def:500,rec:true},
   {id:"utl",lbl:"Electric / Water / Trash",ico:"💡",g:"housing",def:200,rec:false},
   {id:"hrep",lbl:"House Repair Fund",ico:"🔧",g:"housing",def:750,rec:false},
@@ -125,24 +125,28 @@ const CATS0=[
   {id:"p_ug",lbl:"Upgrade",ico:"💳",g:"debt",def:525,rec:true},
   {id:"p_be",lbl:"Best Egg",ico:"💳",g:"debt",def:915,rec:true},
   {id:"p_af",lbl:"Affirm",ico:"💳",g:"debt",def:478,rec:true},
-  {id:"p_ba",lbl:"Barclay",ico:"💳",g:"debt",def:671,rec:true},
-  {id:"p_ax",lbl:"Amex",ico:"💳",g:"debt",def:393,rec:true},
+  {id:"p_ba",lbl:"Barclay",ico:"💳",g:"debt",def:2500,rec:true},
+  {id:"p_ax",lbl:"Amex",ico:"💳",g:"debt",def:500,rec:true},
   {id:"p_ca",lbl:"Citi AA",ico:"💳",g:"debt",def:325,rec:true},
   {id:"p_ci",lbl:"Citi",ico:"💳",g:"debt",def:233,rec:true},
+  {id:"p_ch",lbl:"Chase",   ico:"💳",g:"debt",def:0,  rec:true},
+  {id:"p_bb",lbl:"Best Buy",ico:"💳",g:"debt",def:0,  rec:true},
 ];
 const DEBTS0=[
-  {id:"d1",name:"Avant",bal:28074,apr:33.1,min:1392,col:"#DEBCB5",ord:1,catId:"p_av"},
-  {id:"d2",name:"Barclay",bal:16000,apr:29,min:671,col:"#C9A99A",ord:2,catId:"p_ba"},
-  {id:"d3",name:"American Express",bal:14784,apr:29,min:393,col:"#D4B8A5",ord:3,catId:"p_ax"},
-  {id:"d4",name:"SoFi",bal:59484,apr:26,min:1699,col:"#E8C5C0",ord:4,catId:"p_sf"},
-  {id:"d5",name:"Upstart",bal:39785,apr:17,min:1301,col:"#CFC4DC",ord:5,catId:"p_up"},
-  {id:"d6",name:"Upgrade",bal:20381,apr:17,min:525,col:"#C4C4D4",ord:6,catId:"p_ug"},
-  {id:"d7",name:"Best Egg",bal:26596,apr:15,min:915,col:"#B5C9B8",ord:7,catId:"p_be"},
-  {id:"d8",name:"Affirm",bal:6525,apr:0,min:450,col:"#A8BDB8",ord:8,catId:"p_af"},
-  {id:"d9",name:"Citi",bal:8165,apr:0,min:233,col:"#B5C4B1",ord:9,catId:"p_ci"},
-  {id:"d10",name:"Citi AA",bal:11365,apr:0,min:325,col:"#D4CABC",ord:10,catId:"p_ca"},
-  {id:"d11",name:"SCU Equity Loan",bal:149589,apr:10,min:850,col:"#C9907A",ord:11,catId:""},
-  {id:"d12",name:"Mortgage",bal:220149,apr:2.8,min:2500,col:"#7A9A80",ord:12,catId:"mort"},
+  {id:"d1", name:"Avant",            bal:26375,    apr:33.1, min:1392, col:"#DEBCB5", ord:1,  catId:"p_av"},
+  {id:"d2", name:"Barclay",          bal:14970.62, apr:29,   min:2500,  col:"#C9A99A", ord:2,  catId:"p_ba"},
+  {id:"d3", name:"American Express", bal:13727.08, apr:29,   min:500,  col:"#D4B8A5", ord:3,  catId:"p_ax"},
+  {id:"d4", name:"SoFi",             bal:58308,    apr:26,   min:1699, col:"#E8C5C0", ord:4,  catId:"p_sf"},
+  {id:"d5", name:"Upstart",          bal:40681,    apr:17,   min:1301, col:"#CFC4DC", ord:5,  catId:"p_up"},
+  {id:"d6", name:"Upgrade",          bal:19909,    apr:17,   min:525,  col:"#C4C4D4", ord:6,  catId:"p_ug"},
+  {id:"d7", name:"Best Egg",         bal:26269,    apr:15,   min:915,  col:"#B5C9B8", ord:7,  catId:"p_be"},
+  {id:"d8", name:"Affirm",           bal:5893,     apr:0,    min:450,  col:"#A8BDB8", ord:8,  catId:"p_af"},
+  {id:"d9", name:"Citi",             bal:7699.95,  apr:0,    min:233,  col:"#B5C4B1", ord:9,  catId:"p_ci"},
+  {id:"d10",name:"Citi AA",          bal:10715.38, apr:0,    min:325,  col:"#D4CABC", ord:10, catId:"p_ca"},
+  {id:"d13",name:"Chase",            bal:0,        apr:20,   min:0,    col:"#C9C4DC", ord:11, catId:"p_ch"},
+  {id:"d14",name:"Best Buy",         bal:0,        apr:0,    min:0,    col:"#B8C9C9", ord:12, catId:"p_bb"},
+  {id:"d11",name:"SCU Equity Loan",  bal:149589,   apr:10,   min:1000,  col:"#C9907A", ord:13, catId:""},
+  {id:"d12",name:"Mortgage",         bal:218851,   apr:2.8,  min:2500, col:"#7A9A80", ord:14, catId:"mort"},
 ];
 const ACCS0={
   lc:{name:"Main Checking (LC / X-Energy)",bal:3385,col:"#C9907A",type:"checking"},
@@ -638,6 +642,12 @@ function App(){
   // Load all data — only after onboarding is complete
   useEffect(()=>{if(onboarded)loadBudget();},[viewMonth,viewYear,onboarded]);
   useEffect(()=>{if(onboarded)loadLedger();},[onboarded]);
+  // After both loads settle, sync income streams → budget planned amounts
+  useEffect(()=>{
+    if(!loading&&incomeStreams.length>0){
+      syncIncomeToBudget(incomeStreams,budgets,actuals);
+    }
+  },[loading]);
 
   async function loadBudget(){
     setLoad(true);
@@ -908,9 +918,22 @@ function App(){
   function addRecurring(r){const l=[...recurringDebts,r];setRecurringDebts(l);saveRecurring(l);}
   function editRecurring(r){const l=recurringDebts.map(x=>x.id===r.id?r:x);setRecurringDebts(l);saveRecurring(l);}
   function delRecurring(id){const l=recurringDebts.filter(x=>x.id!==id);setRecurringDebts(l);saveRecurring(l);}
-  function addIncome(s){const l=[...incomeStreams,s];setIncomeStreams(l);saveIncome(l);}
-  function editIncome(s){const l=incomeStreams.map(x=>x.id===s.id?s:x);setIncomeStreams(l);saveIncome(l);}
-  function delIncome(id){const l=incomeStreams.filter(x=>x.id!==id);setIncomeStreams(l);saveIncome(l);}
+  // Sync income streams → budget planned income amounts
+  function syncIncomeToBudget(streams, curBudgets, curActuals){
+    const monthly={};
+    streams.filter(s=>s.active!==false&&s.catId&&s.amount).forEach(s=>{
+      const amt=parseFloat(s.amount)||0;
+      const freq=s.frequency||"biweekly";
+      const m=freq==="weekly"?Math.round(amt*4):freq==="biweekly"?Math.round(amt*2):Math.round(amt);
+      monthly[s.catId]=(monthly[s.catId]||0)+m;
+    });
+    if(!Object.keys(monthly).length)return;
+    const nb={...curBudgets,...monthly};
+    setBudgets(nb);sB(nb,curActuals);
+  }
+  function addIncome(s){const l=[...incomeStreams,s];setIncomeStreams(l);saveIncome(l);syncIncomeToBudget(l,budgets,actuals);}
+  function editIncome(s){const l=incomeStreams.map(x=>x.id===s.id?s:x);setIncomeStreams(l);saveIncome(l);syncIncomeToBudget(l,budgets,actuals);}
+  function delIncome(id){const l=incomeStreams.filter(x=>x.id!==id);setIncomeStreams(l);saveIncome(l);syncIncomeToBudget(l,budgets,actuals);}
 
   // Derived totals
   const totInc=useMemo(()=>{
@@ -1967,10 +1990,14 @@ function RecurringTab({T,recurringDebts,addRecurring,editRecurring,delRecurring,
               ))}
             </div>
           </div>
-          <select value={ni.catId||""} onChange={e=>setNi(x=>({...x,catId:e.target.value}))} style={{gridColumn:"1/-1",padding:"7px 10px",borderRadius:9,border:`1.5px solid ${T.a}28`,background:T.card,color:T.text,fontSize:12,outline:"none",colorScheme:T.dark?"dark":"light"}}>
-            <option value="">Budget category (optional)</option>
-            {incCats.map(c=><option key={c.id} value={c.id}>{c.ico} {c.lbl}</option>)}
-          </select>
+          <div style={{gridColumn:"1/-1"}}>
+            <div style={{fontSize:10,color:T.a2,fontWeight:700,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.08em"}}>📊 Budget category — links to Budget tab</div>
+            <select value={ni.catId||""} onChange={e=>setNi(x=>({...x,catId:e.target.value}))} style={{width:"100%",padding:"8px 10px",borderRadius:9,border:`1.5px solid ${T.a2}40`,background:T.card,color:T.text,fontSize:13,outline:"none",colorScheme:T.dark?"dark":"light"}}>
+              <option value="">— Select income category —</option>
+              {incCats.map(c=><option key={c.id} value={c.id}>{c.ico} {c.lbl}</option>)}
+            </select>
+            {ni.catId&&(()=>{const freq=ni.frequency||"biweekly";const amt=parseFloat(ni.amount)||0;const m=freq==="weekly"?amt*4:freq==="biweekly"?amt*2:amt;return m>0?<div style={{fontSize:11,color:T.a2,marginTop:4}}>→ Will add <strong>${Math.round(m).toLocaleString()}/mo</strong> to Budget tab</div>:null;})()}
+          </div>
         </div>
         <Btn T={T} full onClick={saveI} accent={T.a2}>Add Income Stream</Btn>
       </Card>}
