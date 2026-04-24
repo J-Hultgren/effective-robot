@@ -642,12 +642,7 @@ function App(){
   // Load all data — only after onboarding is complete
   useEffect(()=>{if(onboarded)loadBudget();},[viewMonth,viewYear,onboarded]);
   useEffect(()=>{if(onboarded)loadLedger();},[onboarded]);
-  // After both loads settle, sync income streams → budget planned amounts
-  useEffect(()=>{
-    if(!loading&&incomeStreams.length>0){
-      syncIncomeToBudget(incomeStreams,budgets,actuals);
-    }
-  },[loading]);
+
 
   async function loadBudget(){
     setLoad(true);
@@ -949,6 +944,22 @@ function App(){
   const healthScore=useMemo(()=>calcHealthScore(cats,budgets,actuals,debts,accs,totInc,totBal),[cats,budgets,actuals,debts,accs,totInc,totBal]);
   const split5030=useMemo(()=>calc5030(cats,budgets),[cats,budgets]);
 
+  // Restore all budget data to hardcoded defaults and save to Supabase
+  async function onRestoreDefaults(){
+    if(!confirm("This will restore your full budget categories, debts, and income amounts from the built-in defaults.\n\nYour ledger transactions and goals will NOT be affected.\n\nContinue?"))return;
+    const defaultCats=CATS0.map(c=>({...c}));
+    const defaultBudgets=Object.fromEntries(defaultCats.map(c=>[c.id,c.def]));
+    const defaultDebts=DEBTS0.map(d=>({...d}));
+    setCats(defaultCats);setBudgets(defaultBudgets);setActuals({});setDebts(defaultDebts);
+    await Promise.all([
+      dbSet("cats-v2",{budgets:{cats:defaultCats}}),
+      dbSet(`bud-${viewYear}-${viewMonth}`,{month:viewMonth,year:viewYear,budgets:defaultBudgets,actuals:{}}),
+      dbSet("debts-v1",{budgets:{d:defaultDebts}}),
+    ]);
+    setSync("saved");setTimeout(()=>setSync("idle"),2500);
+    alert("✓ Data restored. Your categories and debts are back.");
+  }
+
   const sl={idle:"",saving:"Saving…",saved:"✓ Synced",error:"⚠ Error"}[sync];
   const sc={idle:"transparent",saving:T.a,saved:T.a2,error:T.danger}[sync];
   const NAV=[{id:"dashboard",lbl:"Home",ico:"🏠"},{id:"calendar",lbl:"Calendar",ico:"📅"},{id:"ledger",lbl:"Ledger",ico:"📒"},{id:"budget",lbl:"Budget",ico:"📊"},{id:"plan",lbl:"Plan",ico:"🎯"}];
@@ -986,6 +997,7 @@ function App(){
     lcReset,scuReset,onResetChange:(acct,obj)=>{if(acct==="lc"){setLcReset(obj);saveSettings(lcStart,scuStart,obj,scuReset);}else{setScuReset(obj);saveSettings(lcStart,scuStart,lcReset,obj);}},
     lastLc,lastScu,actualLastLc,actualLastScu,actualWithBal,monthSummary,darkMode,setDarkMode,
     doExp:()=>doExport(cats,budgets,actuals,goals,assets,totDebt,viewMonth,viewYear,notes),
+    onRestoreDefaults,
     planTab,setPlanTab,
   };
 
@@ -2061,11 +2073,15 @@ function RecurringTab({T,recurringDebts,addRecurring,editRecurring,delRecurring,
 }
 
 // ── Settings Tab ─────────────────────────────────────────────────
-function SettingsTab({T,onTheme,onName,userName,doExp,accs,onAcc,onAddAcc,onDelAcc,darkMode,setDarkMode,lcStart,scuStart,onStartChange,lcReset,scuReset,onResetChange,notes,onNotes}){
+function SettingsTab({T,onTheme,onName,userName,doExp,onRestoreDefaults,accs,onAcc,onAddAcc,onDelAcc,darkMode,setDarkMode,lcStart,scuStart,onStartChange,lcReset,scuReset,onResetChange,notes,onNotes}){
   const [localName,setLocalName]=useState(userName);
   return(
     <div>
-      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:600,color:T.text,marginBottom:14}}>Settings</div>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:600,color:T.text,marginBottom:10}}>Settings</div>
+      {/* Restore data button — prominent, at top */}
+      <button onClick={onRestoreDefaults} style={{width:"100%",marginBottom:16,padding:"12px 16px",borderRadius:12,background:`${T.a2}18`,border:`1.5px solid ${T.a2}50`,fontSize:13,fontWeight:700,color:T.a2,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+        ↺ Restore Budget Categories &amp; Debts
+      </button>
 
       {/* Your name */}
       <Card T={T} style={{padding:"13px 15px",marginBottom:12}}>
