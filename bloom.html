@@ -1557,7 +1557,6 @@ function BudgetPage({T,cats,budgets,actuals,debts,onB,onA,onQuickAdd,onCatLbl,on
   const rem=totInc-totAct;
   const surplus=totInc-totBud;
   const surplusPos=surplus>=0;
-  const remActual=totInc-totAct;
   const [localPast,setLocalPast]=useState(pastIncome);
   const [quickVals,setQuickVals]=useState({});
   function toggleIrreg(){const on=!irregIncome;onIrreg(on,localPast);}
@@ -1680,41 +1679,52 @@ function BudgetPage({T,cats,budgets,actuals,debts,onB,onA,onQuickAdd,onCatLbl,on
 
       {!editMode&&(
         <Card T={T} style={{padding:"13px 17px",marginBottom:20}}>
-          {[{lbl:"Total Income",v:totInc,c:T.a2},{lbl:"Total Budgeted",v:totBud,c:T.a},{lbl:"Total Spent",v:totAct,c:totAct>totInc?T.danger:T.a3}].map((s,i)=>(
+          {[
+            {lbl:"Total Income",v:totInc,c:T.a2},
+            {lbl:"Total Budgeted",v:totBud,c:T.a},
+            {lbl:"Total Spent",v:totAct,c:totAct>totInc?T.danger:T.a3}
+          ].map((s,i)=>(
             <Row key={i} style={{marginBottom:7}}>
               <span style={{fontSize:13,fontWeight:600}}>{s.lbl}</span>
               <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:700,color:s.c}}>{fmt(s.v)}</span>
             </Row>
           ))}
-          <div style={{margin:"10px 0",padding:"12px 14px",borderRadius:13,background:surplusPos?`${T.a2}12`:`${T.danger}08`,border:`1.5px solid ${surplusPos?T.a2:T.danger}35`}}>
-            <Row>
-              <div>
-                <div style={{fontSize:13,fontWeight:700,color:T.text}}>Projected Month-End Surplus</div>
-                <div style={{fontSize:10,color:T.lt,marginTop:1}}>Income minus all budgeted expenses</div>
+          <div style={{margin:"10px 0",padding:"14px",borderRadius:13,
+            background:surplusPos?"rgba(74,138,90,0.08)":"rgba(192,80,64,0.06)",
+            border:surplusPos?"1.5px solid rgba(74,138,90,0.3)":"1.5px solid rgba(192,80,64,0.3)"}}>
+            <div style={{fontSize:12,color:T.lt,marginBottom:4}}>Projected Month-End Surplus</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+              <div style={{fontSize:11,color:T.lt}}>Income minus all budgeted expenses</div>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:700,
+                color:surplusPos?T.a2:T.danger}}>
+                {surplusPos?"+":""}{fmt(surplus)}
               </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:24,fontWeight:700,color:surplusPos?T.a2:T.danger}}>{surplusPos?"+":"-"}{fmt(Math.abs(surplus))}</div>
-                <div style={{fontSize:10,color:surplusPos?T.a2:T.danger,marginTop:1}}>{surplusPos?"available after bills":"over budget"}</div>
-              </div>
-            </Row>
+            </div>
           </div>
-          <div style={{borderTop:`1px solid ${T.div}`,paddingTop:10,marginBottom:10}}>
+          <div style={{borderTop:"1px solid rgba(0,0,0,0.08)",paddingTop:10}}>
             <Row>
               <div>
                 <span style={{fontSize:13,fontWeight:700}}>Remaining Actual</span>
                 <div style={{fontSize:10,color:T.lt,marginTop:1}}>Income minus spent so far</div>
               </div>
               <div style={{textAlign:"right"}}>
-                <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:700,color:rem<0?T.danger:T.a3}}>{rem<0?"-":"+"}{fmt(Math.abs(rem))}</span>
-                <div style={{fontSize:10,color:rem<0?T.danger:T.lt,marginTop:1}}>{rem<0?"over spent":"unspent so far"}</div>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:700,
+                  color:rem<0?T.danger:T.a3}}>
+                  {rem<0?"-":"+"}{fmt(Math.abs(rem))}
+                </div>
+                <div style={{fontSize:10,color:T.lt,marginTop:1}}>{rem<0?"over spent":"unspent so far"}</div>
               </div>
             </Row>
           </div>
-          <div style={{height:6,background:T.div,borderRadius:99,overflow:"hidden",marginBottom:4,position:"relative"}}>
-            <div style={{position:"absolute",height:"100%",width:`${Math.min(totBud/Math.max(totInc,1)*100,100)}%`,background:`${T.a}30`,borderRadius:99}}/>
-            <div style={{position:"absolute",height:"100%",width:`${Math.min(totAct/Math.max(totInc,1)*100,100)}%`,background:totAct>totBud?T.danger:T.a2,borderRadius:99,transition:"width .5s"}}/>
+          <div style={{marginTop:10,height:6,background:T.div,borderRadius:99,overflow:"hidden",position:"relative"}}>
+            <div style={{position:"absolute",height:"100%",borderRadius:99,
+              width:Math.min(totBud/Math.max(totInc,1)*100,100)+"%",
+              background:"rgba(0,0,0,0.12)"}}/>
+            <div style={{position:"absolute",height:"100%",borderRadius:99,transition:"width .5s",
+              width:Math.min(totAct/Math.max(totInc,1)*100,100)+"%",
+              background:totAct>totBud?T.danger:T.a2}}/>
           </div>
-          <Row style={{fontSize:9,color:T.lt}}>
+          <Row style={{fontSize:9,color:T.lt,marginTop:4}}>
             <span>Budgeted {totInc>0?Math.round(totBud/totInc*100):0}% of income</span>
             <span>Spent {totInc>0?Math.round(totAct/totInc*100):0}% of income</span>
           </Row>
