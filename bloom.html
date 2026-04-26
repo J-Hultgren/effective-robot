@@ -632,24 +632,37 @@ function App(){
   async function enablePushNotifications(){
     try{
       setPushStatus("Requesting permission…");
-      const perm=await Notification.requestPermission();
-      if(perm!=="granted"){setPushStatus("Permission denied — allow notifications in browser settings");return;}
+      // Handle both callback and promise styles for Android compatibility
+      let perm;
+      if(typeof Notification.requestPermission === "function"){
+        perm = await new Promise((resolve)=>{
+          const result = Notification.requestPermission(resolve);
+          if(result && typeof result.then === "function") result.then(resolve);
+        });
+      } else {
+        setPushStatus("Notifications not supported in this browser");return;
+      }
+      if(perm!=="granted"){setPushStatus("Permission denied — go to browser settings and allow notifications for this site");return;}
+      setPushStatus("Setting up…");
+      if(!("serviceWorker" in navigator)){setPushStatus("Service worker not supported");return;}
       const reg=await navigator.serviceWorker.ready;
       const sub=await reg.pushManager.subscribe({
         userVisibleOnly:true,
         applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
-      // Send subscription to Vercel backend
-      await fetch(PUSH_BACKEND_URL+"/api/notify",{
+      setPushStatus("Saving subscription…");
+      const resp=await fetch(PUSH_BACKEND_URL+"/api/notify",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({type:"subscribe",subscription:sub.toJSON()}),
       });
+      if(!resp.ok){const err=await resp.json();setPushStatus("Error saving: "+(err.error||resp.status));return;}
       localStorage.setItem("bloomPushEnabled","1");
       setPushEnabled(true);
       setPushStatus("✓ Notifications active!");
     }catch(e){
       setPushStatus("Error: "+e.message);
+      console.error("Push setup error:",e);
     }
   }
 
