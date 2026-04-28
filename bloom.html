@@ -2509,20 +2509,20 @@ function SettingsTab({T,onTheme,onName,userName,doExp,onRestoreDefaults,accs,onA
 
 // ════════════════ TRADES PAGE ════════════════
 var CL_LONG=[
-  {id:"pl",ico:"📊",lbl:"Pressure > 65",desc:"Buying pressure above threshold"},
-  {id:"el",ico:"📈",lbl:"Price above EMA5",desc:"Bullish trend confirmed"},
-  {id:"dl",ico:"🟢",lbl:"Delta positive",desc:"Volume confirms direction"},
-  {id:"rl",ico:"🚧",lbl:"No resistance above",desc:"Clear path to move"},
-  {id:"nl",ico:"⚖️",lbl:"Not near 50/50",desc:"Avoid indecision zones"},
-  {id:"xl",ico:"📰",lbl:"No news imminent",desc:"Avoid whipsaw risk"}
+  {id:"pl",ico:"🟡",lbl:"IQCP L65 hit",desc:"Yellow L65 line crossed — buy pressure active"},
+  {id:"el",ico:"🟣",lbl:"Price above EMA5/MA5",desc:"Purple lines below price — bullish"},
+  {id:"dl",ico:"🟢",lbl:"SBP reading active",desc:"Green SBP bar showing buy pressure"},
+  {id:"ml",ico:"🔵",lbl:"MACD histogram green",desc:"Blue/green bars — momentum up"},
+  {id:"bl",ico:"⬜",lbl:"Above BB basis (96.67)",desc:"Price above middle Bollinger band"},
+  {id:"rl",ico:"🚧",lbl:"No resistance above",desc:"Clear path — no recent swing highs above"}
 ];
 var CL_SHORT=[
-  {id:"ps",ico:"📊",lbl:"Pressure < 35",desc:"Selling pressure below threshold"},
-  {id:"es",ico:"📉",lbl:"Price below EMA5",desc:"Bearish trend confirmed"},
-  {id:"ds",ico:"🔴",lbl:"Delta negative",desc:"Volume confirms direction"},
-  {id:"rs",ico:"🚧",lbl:"No support below",desc:"Clear path to move"},
-  {id:"ns",ico:"⚖️",lbl:"Not near 50/50",desc:"Avoid indecision zones"},
-  {id:"xs",ico:"📰",lbl:"No news imminent",desc:"Avoid whipsaw risk"}
+  {id:"ps",ico:"🟡",lbl:"IQCP L35 hit",desc:"Yellow L35 line crossed — sell pressure active"},
+  {id:"es",ico:"🟣",lbl:"Price below EMA5/MA5",desc:"Purple lines above price — bearish"},
+  {id:"ds",ico:"🔴",lbl:"SSP reading active",desc:"Red SSP bar showing sell pressure"},
+  {id:"ms",ico:"🔴",lbl:"MACD histogram red",desc:"Red bars building — momentum down"},
+  {id:"bs",ico:"⬛",lbl:"Below BB basis (96.67)",desc:"Price below middle Bollinger band"},
+  {id:"rs",ico:"🚧",lbl:"No support below",desc:"Clear path — no recent swing lows below"}
 ];
 
 function TradesPage(props){
@@ -2832,31 +2832,6 @@ function TradesPage(props){
               </div>
             )}
 
-            {/* ── Checklist ── */}
-            <div style={{marginBottom:14}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                <span style={{fontWeight:700,fontSize:11,color:T.a,textTransform:"uppercase",letterSpacing:"0.08em"}}>Pre-Trade Checklist</span>
-                <span style={{fontSize:11,fontWeight:700,color:clCol,background:clCol+"18",padding:"3px 10px",borderRadius:99,border:"1px solid "+clCol+"30"}}>{clDone+"/6 "+clBadge}</span>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-                {clItems.map(function(item){
-                  var on=!!(form.cl||{})[item.id];
-                  return (
-                    <button key={item.id} onClick={function(){toggleCl(item.id);}}
-                      style={{display:"flex",alignItems:"flex-start",gap:8,padding:"9px 10px",borderRadius:11,
-                        border:"2px solid "+(on?T.ok+"70":T.div),background:on?T.ok+"12":T.card,
-                        cursor:"pointer",textAlign:"left",transition:"all .15s",width:"100%"}}>
-                      <span style={{fontSize:19,lineHeight:"1",flexShrink:0}}>{on?"✅":item.ico}</span>
-                      <div>
-                        <div style={{fontSize:11,fontWeight:700,color:on?T.ok:T.text,lineHeight:"1.2"}}>{item.lbl}</div>
-                        <div style={{fontSize:9,color:T.lt,marginTop:2,lineHeight:"1.3"}}>{item.desc}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             <span style={{fontWeight:700,fontSize:11,color:T.a,textTransform:"uppercase",letterSpacing:"0.08em",display:"block",marginBottom:6}}>IQCP Readings</span>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
               <div><span style={lbl}>Entry Press.</span><input type="number" min="0" max="100" placeholder="68" value={form.ePres} onChange={function(e){upd("ePres",e.target.value);}} style={inp}/></div>
@@ -2885,6 +2860,32 @@ function TradesPage(props){
                 placeholder="Setup observations, what worked, what did not..." rows={3}
                 style={{width:"100%",padding:"8px 10px",borderRadius:9,border:"1.5px solid "+T.div,background:T.card,fontSize:13,color:T.text,outline:"none",boxSizing:"border-box",resize:"none"}}/>
             </div>
+
+            {/* ── Checklist ── */}
+            <div style={{marginBottom:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <span style={{fontWeight:700,fontSize:11,color:T.a,textTransform:"uppercase",letterSpacing:"0.08em"}}>Pre-Trade Checklist</span>
+                <span style={{fontSize:11,fontWeight:700,color:clCol,background:clCol+"18",padding:"3px 10px",borderRadius:99,border:"1px solid "+clCol+"30"}}>{clDone+"/6 "+clBadge}</span>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                {clItems.map(function(item){
+                  var on=!!(form.cl||{})[item.id];
+                  return (
+                    <button key={item.id} onClick={function(){toggleCl(item.id);}}
+                      style={{display:"flex",alignItems:"flex-start",gap:8,padding:"9px 10px",borderRadius:11,
+                        border:"2px solid "+(on?T.ok+"70":T.div),background:on?T.ok+"12":T.card,
+                        cursor:"pointer",textAlign:"left",transition:"all .15s",width:"100%"}}>
+                      <span style={{fontSize:19,lineHeight:"1",flexShrink:0}}>{on?"✅":item.ico}</span>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:700,color:on?T.ok:T.text,lineHeight:"1.2"}}>{item.lbl}</div>
+                        <div style={{fontSize:9,color:T.lt,marginTop:2,lineHeight:"1.3"}}>{item.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <button onClick={save}
               style={{width:"100%",padding:"13px",borderRadius:13,border:"none",background:T.a,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>
               {editId?"Update Trade":"Save Trade"}
