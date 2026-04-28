@@ -741,6 +741,7 @@ function App(){
   const [scuReset,setScuReset]=useState(null);
   const [recurringDebts,setRecurringDebts]=useState([]);
   const [incomeStreams,setIncomeStreams]=useState([]);
+  const [trades,setTrades]=useState([]);
   const [showAddTxn,setShowAddTxn]=useState(false);
   const [editTxnId,setEditTxnId]=useState(null);
   const [acctFilter,setAcctFilter]=useState("all");
@@ -851,7 +852,7 @@ function App(){
   }
   async function loadLedger(){
     try{
-      const[tR,sR,rR,iR]=await Promise.all([dbGet("lgr-txns"),dbGet("lgr-settings"),dbGet("lgr-recurring"),dbGet("lgr-income")]);
+      const[tR,sR,rR,iR,trR]=await Promise.all([dbGet("lgr-txns"),dbGet("lgr-settings"),dbGet("lgr-recurring"),dbGet("lgr-income"),dbGet("trades-v1")]);
       if(tR?.budgets?.txns)setTxns(tR.budgets.txns);
       if(sR?.budgets){
         if(sR.budgets.lcStart!=null)setLcStart(sR.budgets.lcStart);
@@ -861,6 +862,7 @@ function App(){
       }
       if(rR?.budgets?.list)setRecurringDebts(rR.budgets.list);
       if(iR?.budgets?.list)setIncomeStreams(iR.budgets.list);
+      if(trR?.budgets?.trades)setTrades(trR.budgets.trades);
     }catch(e){console.error(e);}
   }
 
@@ -881,6 +883,7 @@ function App(){
   const sNwHist=h=>sv("nw",()=>dbSet("nw-hist-v1",{budgets:{h}}));
   const sGP=p=>sv("gp",()=>dbSet(`gpay-${viewYear}-${viewMonth}`,{month:viewMonth,year:viewYear,budgets:{p}}));
   const sIR=v=>sv("ir",()=>dbSet("irrinc-v1",{budgets:{ir:v}}));
+  const sTrades=t=>sv("tr",()=>dbSet("trades-v1",{budgets:{trades:t}}));
   // Ledger save helpers
   const saveTxns=t=>sv("lt",()=>dbSet("lgr-txns",{budgets:{txns:t}}));
   const saveSettings=(lc,scu,lcR,scuR)=>sv("ls",()=>dbSet("lgr-settings",{budgets:{lcStart:lc,scuStart:scu,lcReset:lcR,scuReset:scuR}}));
@@ -1084,6 +1087,10 @@ function App(){
   function revertToAuto(id){const t=txns.filter(x=>x.id!==id);setTxns(t);saveTxns(t);}
   function markPaid(id){const t=txns.map(x=>x.id===id?{...x,planned:false,wasPlanned:true}:x);setTxns(t);saveTxns(t);}
   function revertToPlanned(id){const t=txns.map(x=>x.id===id?{...x,planned:true,wasPlanned:false}:x);setTxns(t);saveTxns(t);}
+  function addTrade(t){var l=trades.concat([Object.assign({},t,{id:"tr"+Date.now()})]);setTrades(l);sTrades(l);}
+  function editTrade(t){var l=trades.map(function(x){return x.id===t.id?t:x;});setTrades(l);sTrades(l);}
+  function delTrade(id){if(!confirm("Delete?"))return;var l=trades.filter(function(x){return x.id!==id;});setTrades(l);sTrades(l);}
+
   function addRecurring(r){const l=[...recurringDebts,r];setRecurringDebts(l);saveRecurring(l);}
   function editRecurring(r){const l=recurringDebts.map(x=>x.id===r.id?r:x);setRecurringDebts(l);saveRecurring(l);}
   function delRecurring(id){const l=recurringDebts.filter(x=>x.id!==id);setRecurringDebts(l);saveRecurring(l);}
@@ -1139,7 +1146,7 @@ function App(){
 
   const sl={idle:"",saving:"Saving…",saved:"✓ Synced",error:"⚠ Error"}[sync];
   const sc={idle:"transparent",saving:T.a,saved:T.a2,error:T.danger}[sync];
-  const NAV=[{id:"dashboard",lbl:"Home",ico:"🏠"},{id:"calendar",lbl:"Calendar",ico:"📅"},{id:"ledger",lbl:"Ledger",ico:"📒"},{id:"budget",lbl:"Budget",ico:"📊"},{id:"plan",lbl:"Plan",ico:"🎯"}];
+  const NAV=[{id:"dashboard",lbl:"Home",ico:"🏠"},{id:"calendar",lbl:"Calendar",ico:"📅"},{id:"ledger",lbl:"Ledger",ico:"📒"},{id:"budget",lbl:"Budget",ico:"📊"},{id:"trades",lbl:"Trades",ico:"📈"},{id:"plan",lbl:"Plan",ico:"🎯"}];
 
   // Derive short display names from user's account names
   const acctNames=useMemo(()=>({
@@ -1159,6 +1166,7 @@ function App(){
     showAddTxn,setShowAddTxn,editTxnId,setEditTxnId,addTxn,delTxn,editTxn,
     commitAuto,revertToAuto,markPaid,revertToPlanned,
     acctFilter,setAcctFilter,descFilter,setDescFilter,
+    trades,addTrade,editTrade,delTrade,
     recurringDebts,addRecurring,editRecurring,delRecurring,
     incomeStreams,addIncome,editIncome,delIncome,
     lcStart,scuStart,onStartChange:(acct,val)=>{
@@ -1225,6 +1233,7 @@ function App(){
           :tab==="calendar"?<CalendarPage {...shared}/>
           :tab==="ledger"?<LedgerPage {...shared}/>
           :tab==="budget"?<BudgetPage {...shared}/>
+          :tab==="trades"?<TradesPage {...shared}/>
           :<PlanPage {...shared}/>
         }
       </div>
@@ -2493,6 +2502,396 @@ function SettingsTab({T,onTheme,onName,userName,doExp,onRestoreDefaults,accs,onA
       <button onClick={()=>{if(confirm("Reset setup wizard? This will walk you through account setup again on next load.\n\nYour data will not be deleted.")){localStorage.removeItem("bloomOnboarded");window.location.reload();}}} style={{width:"100%",padding:"9px",borderRadius:11,border:`1px solid ${T.div}`,background:"transparent",fontSize:12,color:T.lt,cursor:"pointer",marginBottom:20}}>
         ↺ Re-run setup wizard
       </button>
+    </div>
+  );
+}
+
+
+// ════════════════ TRADES PAGE ════════════════
+var CL_LONG=[
+  {id:"pl",ico:"📊",lbl:"Pressure > 65",desc:"Buying pressure above threshold"},
+  {id:"el",ico:"📈",lbl:"Price above EMA5",desc:"Bullish trend confirmed"},
+  {id:"dl",ico:"🟢",lbl:"Delta positive",desc:"Volume confirms direction"},
+  {id:"rl",ico:"🚧",lbl:"No resistance above",desc:"Clear path to move"},
+  {id:"nl",ico:"⚖️",lbl:"Not near 50/50",desc:"Avoid indecision zones"},
+  {id:"xl",ico:"📰",lbl:"No news imminent",desc:"Avoid whipsaw risk"}
+];
+var CL_SHORT=[
+  {id:"ps",ico:"📊",lbl:"Pressure < 35",desc:"Selling pressure below threshold"},
+  {id:"es",ico:"📉",lbl:"Price below EMA5",desc:"Bearish trend confirmed"},
+  {id:"ds",ico:"🔴",lbl:"Delta negative",desc:"Volume confirms direction"},
+  {id:"rs",ico:"🚧",lbl:"No support below",desc:"Clear path to move"},
+  {id:"ns",ico:"⚖️",lbl:"Not near 50/50",desc:"Avoid indecision zones"},
+  {id:"xs",ico:"📰",lbl:"No news imminent",desc:"Avoid whipsaw risk"}
+];
+
+function TradesPage(props){
+  var T=props.T, trades=props.trades||[], addTrade=props.addTrade, editTrade=props.editTrade, delTrade=props.delTrade;
+  var STARTING=2000;
+  var CONTRACTS=["MCLK6","MES","MNQ","MGC","CL","GC"];
+  var SETUPS=["Pressure Breakout","Pressure Reversal","Trend Follow","Fade","Other"];
+  var SESSIONS=["Pre-Market","Open (9:30-11)","Mid-Day (11-2)","Power Hour (3-4)","After Hours"];
+  var blankForm={date:new Date().toISOString().slice(0,10),time:"",contract:"MCLK6",
+    direction:"Long",qty:1,entry:"",exit:"",ePres:"",xPres:"",ema:"Above",
+    setup:"Pressure Breakout",session:"Open (9:30-11)",result:"",pnl:"",notes:"",cl:{}};
+
+  var formState=useState(blankForm);
+  var form=formState[0], setForm=formState[1];
+  var showState=useState(false);
+  var showForm=showState[0], setShowForm=showState[1];
+  var editState=useState(null);
+  var editId=editState[0], setEditId=editState[1];
+  var stTabState=useState("overview");
+  var stTab=stTabState[0], setStTab=stTabState[1];
+  var filterState=useState("all");
+  var filter=filterState[0], setFilter=filterState[1];
+
+  function calcPnl(f){
+    var ep=parseFloat(f.entry), xp=parseFloat(f.exit), c=parseInt(f.qty)||1;
+    if(!ep||!xp) return null;
+    var tv={"MCLK6":1,"CL":1,"MES":1.25,"MNQ":0.5,"MGC":1,"GC":1}[f.contract]||1;
+    var ts={"MCLK6":0.01,"CL":0.01,"MES":0.25,"MNQ":0.25,"MGC":0.1,"GC":0.1}[f.contract]||0.01;
+    var diff=f.direction==="Long"?(xp-ep):(ep-xp);
+    return Math.round((diff/ts)*tv*c*100)/100;
+  }
+
+  function upd(k,v){
+    var nf=Object.assign({},form);
+    nf[k]=v;
+    var p=calcPnl(nf);
+    if(p!==null){nf.pnl=p.toFixed(2);nf.result=Math.abs(p)<2?"Scratch":p>0?"Win":"Loss";}
+    setForm(nf);
+  }
+
+  function toggleCl(id){
+    var c=Object.assign({},form.cl||{});
+    c[id]=!c[id];
+    upd("cl",c);
+  }
+
+  function save(){
+    if(!form.entry){alert("Entry price required");return;}
+    var t=Object.assign({},form,{pnl:parseFloat(form.pnl)||0});
+    if(editId){editTrade(Object.assign({},t,{id:editId}));}
+    else{addTrade(t);}
+    setShowForm(false);setEditId(null);setForm(blankForm);
+  }
+
+  function startEdit(t){
+    setForm(Object.assign({},blankForm,t,{cl:t.cl||{}}));
+    setEditId(t.id);setShowForm(true);
+  }
+
+  // Stats
+  var wins=trades.filter(function(t){return t.result==="Win";});
+  var losses=trades.filter(function(t){return t.result==="Loss";});
+  var totalPnl=trades.reduce(function(s,t){return s+(parseFloat(t.pnl)||0);},0);
+  var winRate=trades.length?Math.round(wins.length/trades.length*100):0;
+  var avgWin=wins.length?wins.reduce(function(s,t){return s+(parseFloat(t.pnl)||0);},0)/wins.length:0;
+  var avgLoss=losses.length?Math.abs(losses.reduce(function(s,t){return s+(parseFloat(t.pnl)||0);},0)/losses.length):0;
+  var pf=avgLoss>0?Math.round(avgWin/avgLoss*100)/100+"":"N/A";
+  var bal=STARTING+totalPnl;
+  var balPct=Math.round((bal-STARTING)/STARTING*100);
+
+  // Sessions
+  var sesMap={};
+  trades.forEach(function(t){
+    var s=t.session||"Unknown";
+    if(!sesMap[s])sesMap[s]={pnl:0,n:0};
+    sesMap[s].pnl+=(parseFloat(t.pnl)||0);sesMap[s].n++;
+  });
+
+  // Setups
+  var setMap={};
+  trades.forEach(function(t){
+    var s=t.setup||"Other";
+    if(!setMap[s])setMap[s]={pnl:0,w:0,n:0};
+    setMap[s].pnl+=(parseFloat(t.pnl)||0);
+    if(t.result==="Win")setMap[s].w++;
+    setMap[s].n++;
+  });
+
+  // Equity curve
+  var sorted=trades.slice().sort(function(a,b){return a.date>b.date?1:-1;});
+  var curve=[];var run=STARTING;
+  sorted.forEach(function(t){run+=(parseFloat(t.pnl)||0);curve.push(run);});
+  var cMax=curve.length?Math.max.apply(null,curve.concat([STARTING+100])):STARTING+100;
+  var cMin=curve.length?Math.min.apply(null,curve.concat([STARTING-100])):STARTING-100;
+  var cH=80;
+  function toY(v){return cH-(v-cMin)/(cMax-cMin||1)*cH;}
+  var pts=curve.map(function(v,i){return (i/(curve.length-1||1)*220)+","+toY(v);}).join(" ");
+
+  // Filtered list
+  var shown=filter==="all"?trades:trades.filter(function(t){return t.result===filter;});
+  shown=shown.slice().sort(function(a,b){return b.date>a.date?1:-1;});
+
+  // Checklist for form
+  var clItems=form.direction==="Long"?CL_LONG:CL_SHORT;
+  var clDone=clItems.filter(function(i){return !!(form.cl||{})[i.id];}).length;
+  var clBadge=clDone===6?"✅ Clear":clDone>=4?"⚠️ Caution":"🚫 Not ready";
+  var clCol=clDone===6?T.ok:clDone>=4?T.warn:T.danger;
+
+  var inp={width:"100%",padding:"8px 10px",borderRadius:9,border:"1.5px solid "+T.div,background:T.card,fontSize:13,color:T.text,outline:"none",boxSizing:"border-box"};
+  var lbl={fontSize:10,color:T.lt,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4,display:"block"};
+  var card={background:T.card,borderRadius:14,padding:"11px 12px",border:"1px solid "+T.div,textAlign:"center"};
+
+  return (
+    <div className="fade">
+
+      {/* ── Stats strip ── */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+        <div style={card}>
+          <div style={{fontSize:9,color:T.lt,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>Account</div>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:700,color:bal>=STARTING?T.ok:T.danger}}>{"$"+bal.toFixed(0)}</div>
+          <div style={{fontSize:10,color:balPct>=0?T.ok:T.danger}}>{(balPct>=0?"+":"")+balPct+"%"}</div>
+        </div>
+        <div style={card}>
+          <div style={{fontSize:9,color:T.lt,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>Win Rate</div>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:700,color:winRate>=55?T.ok:winRate>=40?T.warn:T.danger}}>{winRate+"%"}</div>
+          <div style={{fontSize:10,color:T.lt}}>{wins.length+"W / "+losses.length+"L"}</div>
+        </div>
+        <div style={card}>
+          <div style={{fontSize:9,color:T.lt,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>Total P&L</div>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:700,color:totalPnl>=0?T.ok:T.danger}}>{(totalPnl>=0?"+":"")+totalPnl.toFixed(2)}</div>
+          <div style={{fontSize:10,color:T.lt}}>{trades.length+" trades"}</div>
+        </div>
+      </div>
+
+      {/* ── Equity curve ── */}
+      {curve.length>1&&(
+        <div style={{background:T.card,borderRadius:16,padding:"13px 15px",border:"1px solid "+T.div,marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:T.text,marginBottom:8}}>Equity Curve</div>
+          <svg width="100%" viewBox={"0 0 220 "+cH} preserveAspectRatio="none" style={{height:cH,display:"block"}}>
+            <line x1="0" y1={toY(STARTING)} x2="220" y2={toY(STARTING)} stroke={T.div} strokeWidth="1" strokeDasharray="3,3"/>
+            <polygon points={"0,"+cH+" "+pts+" 220,"+cH} fill={totalPnl>=0?T.ok+"28":T.danger+"28"}/>
+            <polyline points={pts} fill="none" stroke={totalPnl>=0?T.ok:T.danger} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:T.lt,marginTop:4}}>
+            <span>Start $2,000</span><span>{"Now $"+bal.toFixed(0)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Stats tabs ── */}
+      <div style={{background:T.card,borderRadius:16,padding:"13px 15px",border:"1px solid "+T.div,marginBottom:12}}>
+        <div style={{display:"flex",gap:6,marginBottom:12}}>
+          {["overview","sessions","setups"].map(function(s){
+            return <button key={s} onClick={function(){setStTab(s);}}
+              style={{flex:1,padding:"6px",borderRadius:9,fontSize:11,cursor:"pointer",fontWeight:stTab===s?700:400,textTransform:"capitalize",
+                border:"1.5px solid "+(stTab===s?T.a+"60":T.div),background:stTab===s?T.a+"14":"transparent",color:stTab===s?T.a:T.lt}}>{s}</button>;
+          })}
+        </div>
+
+        {stTab==="overview"&&(
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {[{l:"Avg Winner",v:"+$"+avgWin.toFixed(2),c:T.ok},{l:"Avg Loser",v:"-$"+avgLoss.toFixed(2),c:T.danger},
+              {l:"Profit Factor",v:pf,c:T.a},{l:"Win Rate",v:winRate+"%",c:winRate>=55?T.ok:T.warn},
+              {l:"Goal ($5k)",v:"$"+bal.toFixed(0),c:bal>=5000?T.ok:T.a},{l:"To Goal",v:"$"+Math.max(0,5000-bal).toFixed(0),c:T.lt}
+            ].map(function(s){
+              return <div key={s.l} style={{background:s.c+"10",borderRadius:11,padding:"10px 11px",border:"1px solid "+s.c+"22"}}>
+                <div style={{fontSize:9,color:T.lt,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3}}>{s.l}</div>
+                <div style={{fontSize:16,fontFamily:"'Cormorant Garamond',serif",fontWeight:700,color:s.c}}>{s.v}</div>
+              </div>;
+            })}
+          </div>
+        )}
+
+        {stTab==="sessions"&&(
+          <div>
+            {Object.keys(sesMap).length===0&&<div style={{fontSize:12,color:T.lt,textAlign:"center",padding:12}}>No data yet</div>}
+            {Object.entries(sesMap).sort(function(a,b){return b[1].pnl-a[1].pnl;}).map(function(e){
+              return <div key={e[0]} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid "+T.div}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:T.text}}>{e[0]}</div>
+                  <div style={{fontSize:10,color:T.lt}}>{e[1].n+" trade"+(e[1].n!==1?"s":"")}</div>
+                </div>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:700,color:e[1].pnl>=0?T.ok:T.danger}}>{(e[1].pnl>=0?"+":"")+e[1].pnl.toFixed(2)}</div>
+              </div>;
+            })}
+          </div>
+        )}
+
+        {stTab==="setups"&&(
+          <div>
+            {Object.keys(setMap).length===0&&<div style={{fontSize:12,color:T.lt,textAlign:"center",padding:12}}>No data yet</div>}
+            {Object.entries(setMap).sort(function(a,b){return b[1].pnl-a[1].pnl;}).map(function(e){
+              return <div key={e[0]} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid "+T.div}}>
+                <div>
+                  <div style={{fontSize:12,fontWeight:700,color:T.text}}>{e[0]}</div>
+                  <div style={{fontSize:10,color:T.lt}}>{e[1].n+" trades · "+Math.round(e[1].w/e[1].n*100)+"% win"}</div>
+                </div>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:700,color:e[1].pnl>=0?T.ok:T.danger}}>{(e[1].pnl>=0?"+":"")+e[1].pnl.toFixed(2)}</div>
+              </div>;
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Log button ── */}
+      <button onClick={function(){setForm(blankForm);setEditId(null);setShowForm(true);}}
+        style={{width:"100%",padding:"12px",borderRadius:14,border:"2px dashed "+T.a+"50",background:T.a+"0C",fontSize:14,color:T.a,cursor:"pointer",fontWeight:700,marginBottom:12}}>
+        + Log Trade
+      </button>
+
+      {/* ── Filter ── */}
+      {trades.length>0&&(
+        <div style={{display:"flex",gap:6,marginBottom:10}}>
+          {["all","Win","Loss","Scratch"].map(function(f){
+            return <button key={f} onClick={function(){setFilter(f);}}
+              style={{flex:1,padding:"5px",borderRadius:9,fontSize:10,cursor:"pointer",fontWeight:filter===f?700:400,
+                border:"1.5px solid "+(filter===f?T.a+"60":T.div),background:filter===f?T.a+"14":"transparent",color:filter===f?T.a:T.lt}}>
+              {f==="all"?"All":f}
+            </button>;
+          })}
+        </div>
+      )}
+
+      {/* ── Empty state ── */}
+      {shown.length===0&&trades.length===0&&(
+        <div style={{textAlign:"center",padding:"32px 16px",color:T.lt}}>
+          <div style={{fontSize:32,marginBottom:8}}>📈</div>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,marginBottom:6,color:T.text}}>No trades yet</div>
+          <div style={{fontSize:12}}>Log your first trade to track your edge.</div>
+        </div>
+      )}
+
+      {/* ── Trade cards ── */}
+      {shown.map(function(t){
+        var pnl=parseFloat(t.pnl)||0;
+        var col=t.result==="Win"?T.ok:t.result==="Loss"?T.danger:T.warn;
+        var tcl=t.cl||{};
+        var titems=t.direction==="Long"?CL_LONG:CL_SHORT;
+        var tchk=titems.filter(function(i){return !!tcl[i.id];}).length;
+        return (
+          <div key={t.id} style={{background:T.card,borderRadius:14,padding:"12px 14px",border:"1px solid "+col+"28",marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:4}}>
+                  <span style={{fontSize:11,fontWeight:700,color:T.text}}>{t.contract}</span>
+                  <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:(t.direction==="Long"?T.ok:T.danger)+"20",color:(t.direction==="Long"?T.ok:T.danger),fontWeight:700}}>{t.direction}</span>
+                  <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:col+"18",color:col,fontWeight:700}}>{t.result||"—"}</span>
+                  <span style={{fontSize:9,padding:"2px 7px",borderRadius:99,background:(tchk===6?T.ok:tchk>=4?T.warn:T.danger)+"18",color:(tchk===6?T.ok:tchk>=4?T.warn:T.danger),fontWeight:700}}>{tchk+"/6"}</span>
+                </div>
+                <div style={{fontSize:10,color:T.lt,marginBottom:2}}>{t.date+(t.time?" · "+t.time:"")+" · "+(t.session||"")}</div>
+                <div style={{fontSize:10,color:T.lt}}>{(t.setup||"")+(t.entry?" · "+t.entry+"→"+(t.exit||"?"):"")}</div>
+                {t.notes&&<div style={{fontSize:11,color:T.lt,marginTop:4,fontStyle:"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>"{t.notes}"</div>}
+              </div>
+              <div style={{textAlign:"right",marginLeft:10,flexShrink:0}}>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:700,color:col}}>{(pnl>=0?"+":"")+pnl.toFixed(2)}</div>
+                <div style={{fontSize:9,color:T.lt}}>{(t.qty||1)+"x"}</div>
+                <div style={{display:"flex",gap:5,marginTop:6}}>
+                  <button onClick={function(){startEdit(t);}} style={{background:T.a+"14",border:"none",borderRadius:7,padding:"3px 8px",fontSize:11,color:T.a,cursor:"pointer"}}>Edit</button>
+                  <button onClick={function(){delTrade(t.id);}} style={{background:T.danger+"14",border:"none",borderRadius:7,padding:"3px 8px",fontSize:11,color:T.danger,cursor:"pointer"}}>✕</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* ── Form modal ── */}
+      {showForm&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.55)",zIndex:50,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+          onClick={function(){setShowForm(false);}}>
+          <div style={{background:T.bg,borderRadius:"24px 24px 0 0",padding:"20px 16px 40px",width:"100%",maxWidth:540,maxHeight:"88vh",overflowY:"auto"}}
+            onClick={function(e){e.stopPropagation();}}>
+
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:700,color:T.text}}>{editId?"Edit":"Log Trade"}</div>
+              <button onClick={function(){setShowForm(false);}} style={{background:"none",border:"none",fontSize:20,color:T.lt,cursor:"pointer"}}>✕</button>
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+              <div><span style={lbl}>Date</span><input type="date" value={form.date} onChange={function(e){upd("date",e.target.value);}} style={inp}/></div>
+              <div><span style={lbl}>Time</span><input type="time" value={form.time} onChange={function(e){upd("time",e.target.value);}} style={inp}/></div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+              <div><span style={lbl}>Contract</span>
+                <select value={form.contract} onChange={function(e){upd("contract",e.target.value);}} style={inp}>
+                  {CONTRACTS.map(function(c){return <option key={c} value={c}>{c}</option>;})}
+                </select>
+              </div>
+              <div><span style={lbl}>Direction</span>
+                <select value={form.direction} onChange={function(e){upd("direction",e.target.value);}} style={inp}>
+                  <option value="Long">Long</option><option value="Short">Short</option>
+                </select>
+              </div>
+              <div><span style={lbl}>Size</span><input type="number" min="1" max="20" value={form.qty} onChange={function(e){upd("qty",e.target.value);}} style={inp}/></div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+              <div><span style={lbl}>Entry Price</span><input type="number" step="0.01" placeholder="0.00" value={form.entry} onChange={function(e){upd("entry",e.target.value);}} style={inp}/></div>
+              <div><span style={lbl}>Exit Price</span><input type="number" step="0.01" placeholder="0.00" value={form.exit} onChange={function(e){upd("exit",e.target.value);}} style={inp}/></div>
+            </div>
+
+            {form.pnl!==""&&(
+              <div style={{textAlign:"center",padding:"10px",marginBottom:12,borderRadius:10,background:(parseFloat(form.pnl)>=0?T.ok:T.danger)+"18",border:"1px solid "+(parseFloat(form.pnl)>=0?T.ok:T.danger)+"30"}}>
+                <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:700,color:parseFloat(form.pnl)>=0?T.ok:T.danger}}>
+                  {(parseFloat(form.pnl)>=0?"+":"")+parseFloat(form.pnl).toFixed(2)}
+                </span>
+                <span style={{fontSize:12,color:T.lt,marginLeft:10}}>{form.result}</span>
+              </div>
+            )}
+
+            {/* ── Checklist ── */}
+            <div style={{marginBottom:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <span style={{fontWeight:700,fontSize:11,color:T.a,textTransform:"uppercase",letterSpacing:"0.08em"}}>Pre-Trade Checklist</span>
+                <span style={{fontSize:11,fontWeight:700,color:clCol,background:clCol+"18",padding:"3px 10px",borderRadius:99,border:"1px solid "+clCol+"30"}}>{clDone+"/6 "+clBadge}</span>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                {clItems.map(function(item){
+                  var on=!!(form.cl||{})[item.id];
+                  return (
+                    <button key={item.id} onClick={function(){toggleCl(item.id);}}
+                      style={{display:"flex",alignItems:"flex-start",gap:8,padding:"9px 10px",borderRadius:11,
+                        border:"2px solid "+(on?T.ok+"70":T.div),background:on?T.ok+"12":T.card,
+                        cursor:"pointer",textAlign:"left",transition:"all .15s",width:"100%"}}>
+                      <span style={{fontSize:19,lineHeight:"1",flexShrink:0}}>{on?"✅":item.ico}</span>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:700,color:on?T.ok:T.text,lineHeight:"1.2"}}>{item.lbl}</div>
+                        <div style={{fontSize:9,color:T.lt,marginTop:2,lineHeight:"1.3"}}>{item.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <span style={{fontWeight:700,fontSize:11,color:T.a,textTransform:"uppercase",letterSpacing:"0.08em",display:"block",marginBottom:6}}>IQCP Readings</span>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+              <div><span style={lbl}>Entry Press.</span><input type="number" min="0" max="100" placeholder="68" value={form.ePres} onChange={function(e){upd("ePres",e.target.value);}} style={inp}/></div>
+              <div><span style={lbl}>Exit Press.</span><input type="number" min="0" max="100" placeholder="42" value={form.xPres} onChange={function(e){upd("xPres",e.target.value);}} style={inp}/></div>
+              <div><span style={lbl}>EMA</span>
+                <select value={form.ema} onChange={function(e){upd("ema",e.target.value);}} style={inp}>
+                  <option>Above</option><option>Below</option><option>At</option>
+                </select>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+              <div><span style={lbl}>Setup</span>
+                <select value={form.setup} onChange={function(e){upd("setup",e.target.value);}} style={inp}>
+                  {SETUPS.map(function(s){return <option key={s} value={s}>{s}</option>;})}
+                </select>
+              </div>
+              <div><span style={lbl}>Session</span>
+                <select value={form.session} onChange={function(e){upd("session",e.target.value);}} style={inp}>
+                  {SESSIONS.map(function(s){return <option key={s} value={s}>{s}</option>;})}
+                </select>
+              </div>
+            </div>
+            <div style={{marginBottom:16}}>
+              <span style={lbl}>Notes</span>
+              <textarea value={form.notes} onChange={function(e){upd("notes",e.target.value);}}
+                placeholder="Setup observations, what worked, what did not..." rows={3}
+                style={{width:"100%",padding:"8px 10px",borderRadius:9,border:"1.5px solid "+T.div,background:T.card,fontSize:13,color:T.text,outline:"none",boxSizing:"border-box",resize:"none"}}/>
+            </div>
+            <button onClick={save}
+              style={{width:"100%",padding:"13px",borderRadius:13,border:"none",background:T.a,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer"}}>
+              {editId?"Update Trade":"Save Trade"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
