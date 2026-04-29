@@ -898,9 +898,9 @@ function App(){
       if(cat.inc){if(t.amount>0)derived[t.catId]+=t.amount;}
       else{if(t.amount<0)derived[t.catId]+=Math.abs(t.amount);}
     });
-    // Merge: ledger-derived takes priority for any catId that has transactions
-    // Debt actuals (from dpays) are preserved if not overridden by ledger
-    const merged={...currentActuals};
+    // Only merge with passed-in actuals if they belong to the same month
+    const base=(mo===viewMonth&&yr===viewYear)?currentActuals:{};
+    const merged={...base};
     Object.keys(derived).forEach(k=>{merged[k]=derived[k];});
     return merged;
   }
@@ -1066,7 +1066,11 @@ function App(){
     setTxns(t);saveTxns(t);setShowAddTxn(false);
     if(f.catId){
       const d=parseISO(f.date);
-      if(d){const merged=recomputeActuals(t,actuals,d.m,d.y);setActuals(merged);sB(budgets,merged,d.m,d.y);}
+      if(d){
+        const merged=recomputeActuals(t,actuals,d.m,d.y);
+        if(d.m===viewMonth&&d.y===viewYear)setActuals(merged);
+        sB(budgets,merged,d.m,d.y);
+      }
     }
   }
   function delTxn(id){
@@ -1075,31 +1079,73 @@ function App(){
     const t=txns.filter(x=>x.id!==id);setTxns(t);saveTxns(t);
     if(removed?.catId){
       const d=parseISO(removed.date);
-      if(d){const merged=recomputeActuals(t,actuals,d.m,d.y);setActuals(merged);sB(budgets,merged,d.m,d.y);}
+      if(d){
+        const merged=recomputeActuals(t,actuals,d.m,d.y);
+        if(d.m===viewMonth&&d.y===viewYear)setActuals(merged);
+        sB(budgets,merged,d.m,d.y);
+      }
     }
   }
   function editTxn(f){
     const t=txns.map(x=>x.id===f.id?{...f,amount:parseFloat(f.amount)||0}:x).sort((a,b)=>a.date.localeCompare(b.date));
     setTxns(t);saveTxns(t);setEditTxnId(null);
     const d=parseISO(f.date);
-    if(d){const merged=recomputeActuals(t,actuals,d.m,d.y);setActuals(merged);sB(budgets,merged,d.m,d.y);}
+    if(d){
+      const merged=recomputeActuals(t,actuals,d.m,d.y);
+      if(d.m===viewMonth&&d.y===viewYear)setActuals(merged);
+      sB(budgets,merged,d.m,d.y);
+    }
   }
   function commitAuto(auto){
-    const t=[...txns,{...auto,id:Date.now().toString(),isAuto:false,wasAuto:true}].sort((a,b)=>a.date.localeCompare(b.date));
+    const committed={...auto,id:Date.now().toString(),isAuto:false,wasAuto:true};
+    const t=[...txns,committed].sort((a,b)=>a.date.localeCompare(b.date));
     setTxns(t);saveTxns(t);
+    if(committed.catId){
+      const d=parseISO(committed.date);
+      if(d){
+        const merged=recomputeActuals(t,actuals,d.m,d.y);
+        if(d.m===viewMonth&&d.y===viewYear)setActuals(merged);
+        sB(budgets,merged,d.m,d.y);
+      }
+    }
   }
   function revertToAuto(id){const t=txns.filter(x=>x.id!==id);setTxns(t);saveTxns(t);}
-  function markPaid(id){const t=txns.map(x=>x.id===id?{...x,planned:false,wasPlanned:true}:x);setTxns(t);saveTxns(t);}
-  function revertToPlanned(id){const t=txns.map(x=>x.id===id?{...x,planned:true,wasPlanned:false}:x);setTxns(t);saveTxns(t);}
+  function markPaid(id){
+    const t=txns.map(x=>x.id===id?{...x,planned:false,wasPlanned:true}:x);
+    setTxns(t);saveTxns(t);
+    const paid=t.find(x=>x.id===id);
+    if(paid?.catId){
+      const d=parseISO(paid.date);
+      if(d){
+        const merged=recomputeActuals(t,actuals,d.m,d.y);
+        if(d.m===viewMonth&&d.y===viewYear)setActuals(merged);
+        sB(budgets,merged,d.m,d.y);
+      }
+    }
+  }
+  function revertToPlanned(id){
+    const t=txns.map(x=>x.id===id?{...x,planned:true,wasPlanned:false}:x);
+    setTxns(t);saveTxns(t);
+    const txn=t.find(x=>x.id===id);
+    if(txn?.catId){
+      const d=parseISO(txn.date);
+      if(d){
+        const merged=recomputeActuals(t,actuals,d.m,d.y);
+        if(d.m===viewMonth&&d.y===viewYear)setActuals(merged);
+        sB(budgets,merged,d.m,d.y);
+      }
+    }
+  }
   function addRecurring(r){const l=[...recurringDebts,r];setRecurringDebts(l);saveRecurring(l);}
   function editRecurring(r){const l=recurringDebts.map(x=>x.id===r.id?r:x);setRecurringDebts(l);saveRecurring(l);}
   function delRecurring(id){const l=recurringDebts.filter(x=>x.id!==id);setRecurringDebts(l);saveRecurring(l);}
   // Sync income → budget planned amounts based on actual paychecks in viewMonth
   function syncIncomeToBudget(streams,curBudgets,curActuals,mo,yr){
-    const monthly=calcMonthlyIncomeFromStreams(streams,yr||viewYear,mo!==undefined?mo:viewMonth);
+    const m=mo!==undefined?mo:viewMonth;const y=yr!==undefined?yr:viewYear;
+    const monthly=calcMonthlyIncomeFromStreams(streams,y,m);
     if(!Object.keys(monthly).length)return;
     const nb={...curBudgets,...monthly};
-    setBudgets(nb);sB(nb,curActuals);
+    setBudgets(nb);sB(nb,curActuals,m,y);
   }
   function addIncome(s){const l=[...incomeStreams,s];setIncomeStreams(l);saveIncome(l);syncIncomeToBudget(l,budgets,actuals);}
   function editIncome(s){const l=incomeStreams.map(x=>x.id===s.id?s:x);setIncomeStreams(l);saveIncome(l);syncIncomeToBudget(l,budgets,actuals);}
@@ -1198,7 +1244,9 @@ function App(){
       <div style={{position:"sticky",top:0,zIndex:20,background:T.hdr,backdropFilter:"blur(16px)",borderBottom:`1px solid ${T.div}`,padding:"10px 16px"}} className="safe-top">
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div>
-            <div style={{fontSize:9,color:T.a,fontWeight:700,letterSpacing:"0.11em",textTransform:"uppercase",marginBottom:1}}>{["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()]}, {MO[new Date().getMonth()]} {new Date().getDate()}</div>
+            <div style={{fontSize:12,color:T.a,fontWeight:700,letterSpacing:"0.06em",marginBottom:2}}>
+              {["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()]}, {MO[new Date().getMonth()]} {new Date().getDate()}, {new Date().getFullYear()}
+            </div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
               <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:700,color:T.text}}>🌸 Bloom</div>
@@ -1478,19 +1526,25 @@ function SelectedDayDetail({T,selectedDay,viewYear,viewMonth,withBal,actualWithB
                 {neg?"":"+"}{fmtD(t.amount)}
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:3,flexShrink:0}}>
-                {t.isAuto
-                  ?<button onClick={()=>commitAuto(t)} style={{fontSize:11,background:T.a2+"18",border:`1px solid ${T.a2}35`,borderRadius:7,padding:"3px 6px",color:T.a2,cursor:"pointer"}}>✓ confirm</button>
-                  :t.planned
-                    ?<button onClick={()=>markPaid(t.id)} style={{fontSize:11,background:T.a2+"18",border:`1px solid ${T.a2}35`,borderRadius:7,padding:"3px 6px",color:T.a2,cursor:"pointer"}}>✓ paid</button>
-                    :<>
-                      {t.wasPlanned&&<button onClick={()=>revertToPlanned(t.id)} style={{fontSize:10,background:T.a3+"18",border:`1px solid ${T.a3}40`,borderRadius:6,padding:"2px 5px",color:T.a3,cursor:"pointer"}}>↺ plan</button>}
-                      {t.wasAuto&&<button onClick={()=>revertToAuto(t.id)} style={{fontSize:10,background:T.warn+"18",border:`1px solid ${T.warn}40`,borderRadius:6,padding:"2px 5px",color:T.warn,cursor:"pointer"}}>↺ auto</button>}
-                      <div style={{display:"flex",gap:3}}>
-                        <button onClick={()=>setEditTxnId(t.id)} style={{fontSize:12,background:"none",border:"none",cursor:"pointer",color:T.lt,padding:"2px"}}>✏️</button>
-                        <button onClick={()=>delTxn(t.id)} style={{fontSize:12,background:"none",border:"none",cursor:"pointer",color:T.danger,padding:"2px"}}>×</button>
-                      </div>
-                    </>
-                }
+                {t.isAuto?(
+                  <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                    <button onClick={()=>commitAuto(t)} style={{fontSize:11,background:T.a2+"18",border:`1px solid ${T.a2}35`,borderRadius:7,padding:"3px 6px",color:T.a2,cursor:"pointer"}}>✓ confirm</button>
+                  </div>
+                ):t.planned?(
+                  <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                    <button onClick={()=>markPaid(t.id)} style={{fontSize:11,background:T.a2+"18",border:`1px solid ${T.a2}35`,borderRadius:7,padding:"3px 6px",color:T.a2,cursor:"pointer"}}>✓ paid</button>
+                    <button onClick={()=>revertToPlanned(t.id)} style={{fontSize:10,background:T.a3+"10",border:`1px solid ${T.a3}30`,borderRadius:6,padding:"2px 5px",color:T.a3,cursor:"pointer"}}>↺ unplan</button>
+                    <button onClick={()=>setEditTxnId(t.id)} style={{fontSize:11,background:"none",border:"none",cursor:"pointer",color:T.lt,padding:"2px"}}>✏️</button>
+                    <button onClick={()=>delTxn(t.id)} style={{fontSize:11,background:"none",border:"none",cursor:"pointer",color:T.danger,padding:"2px"}}>×</button>
+                  </div>
+                ):(
+                  <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                    <button onClick={()=>revertToPlanned(t.id)} style={{fontSize:10,background:T.a3+"14",border:`1px solid ${T.a3}35`,borderRadius:6,padding:"3px 5px",color:T.a3,cursor:"pointer"}}>🗓 plan</button>
+                    {t.wasAuto&&<button onClick={()=>revertToAuto(t.id)} style={{fontSize:10,background:T.warn+"14",border:`1px solid ${T.warn}35`,borderRadius:6,padding:"2px 5px",color:T.warn,cursor:"pointer"}}>↺ auto</button>}
+                    <button onClick={()=>setEditTxnId(t.id)} style={{fontSize:11,background:"none",border:"none",cursor:"pointer",color:T.lt,padding:"2px"}}>✏️</button>
+                    <button onClick={()=>delTxn(t.id)} style={{fontSize:11,background:"none",border:"none",cursor:"pointer",color:T.danger,padding:"2px"}}>×</button>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -1648,16 +1702,25 @@ function LedgerPage({T,monthTxns,showAddTxn,setShowAddTxn,editTxnId,setEditTxnId
               </div>
             </div>
             <div style={{display:"flex",gap:5,marginTop:7,justifyContent:"flex-end"}}>
-              {t.isAuto
-                ?<button onClick={()=>commitAuto(t)} style={{fontSize:11,background:T.a2+"18",border:`1px solid ${T.a2}30`,borderRadius:7,padding:"3px 8px",color:T.a2,cursor:"pointer"}}>✓ Confirm</button>
-                :t.planned
-                  ?<button onClick={()=>markPaid(t.id)} style={{fontSize:11,background:T.a2+"18",border:`1px solid ${T.a2}30`,borderRadius:7,padding:"3px 8px",color:T.a2,cursor:"pointer"}}>✓ Paid</button>
-                  :<>
-                    {t.wasAuto&&<button onClick={()=>revertToAuto(t.id)} style={{fontSize:10,background:T.warn+"14",border:`1px solid ${T.warn}30`,borderRadius:6,padding:"2px 7px",color:T.warn,cursor:"pointer"}}>↺ auto</button>}
-                    <button onClick={()=>setEditTxnId(t.id)} style={{fontSize:12,background:T.a+"10",border:`1px solid ${T.a}25`,borderRadius:7,padding:"3px 8px",color:T.a,cursor:"pointer"}}>✏️ Edit</button>
-                    <button onClick={()=>delTxn(t.id)} style={{fontSize:12,background:T.danger+"10",border:`1px solid ${T.danger}25`,borderRadius:7,padding:"3px 8px",color:T.danger,cursor:"pointer"}}>× Delete</button>
-                  </>
-              }
+              {t.isAuto?(
+                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                  <button onClick={()=>commitAuto(t)} style={{fontSize:11,background:T.a2+"18",border:`1px solid ${T.a2}30`,borderRadius:7,padding:"4px 8px",color:T.a2,cursor:"pointer"}}>✓ Confirm</button>
+                </div>
+              ):t.planned?(
+                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                  <button onClick={()=>markPaid(t.id)} style={{fontSize:11,background:T.a2+"18",border:`1px solid ${T.a2}30`,borderRadius:7,padding:"4px 8px",color:T.a2,cursor:"pointer"}}>✓ Paid</button>
+                  <button onClick={()=>revertToPlanned(t.id)} style={{fontSize:11,background:T.a3+"14",border:`1px solid ${T.a3}30`,borderRadius:7,padding:"4px 8px",color:T.a3,cursor:"pointer"}}>↺ Unplan</button>
+                  <button onClick={()=>setEditTxnId(t.id)} style={{fontSize:11,background:T.a+"10",border:`1px solid ${T.a}25`,borderRadius:7,padding:"4px 8px",color:T.a,cursor:"pointer"}}>✏️ Edit</button>
+                  <button onClick={()=>delTxn(t.id)} style={{fontSize:11,background:T.danger+"10",border:`1px solid ${T.danger}25`,borderRadius:7,padding:"4px 8px",color:T.danger,cursor:"pointer"}}>× Delete</button>
+                </div>
+              ):(
+                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                  <button onClick={()=>revertToPlanned(t.id)} style={{fontSize:11,background:T.a3+"14",border:`1px solid ${T.a3}30`,borderRadius:7,padding:"4px 8px",color:T.a3,cursor:"pointer"}}>🗓 Plan</button>
+                  {t.wasAuto&&<button onClick={()=>revertToAuto(t.id)} style={{fontSize:10,background:T.warn+"14",border:`1px solid ${T.warn}30`,borderRadius:6,padding:"4px 7px",color:T.warn,cursor:"pointer"}}>↺ Auto</button>}
+                  <button onClick={()=>setEditTxnId(t.id)} style={{fontSize:11,background:T.a+"10",border:`1px solid ${T.a}25`,borderRadius:7,padding:"4px 8px",color:T.a,cursor:"pointer"}}>✏️ Edit</button>
+                  <button onClick={()=>delTxn(t.id)} style={{fontSize:11,background:T.danger+"10",border:`1px solid ${T.danger}25`,borderRadius:7,padding:"4px 8px",color:T.danger,cursor:"pointer"}}>× Delete</button>
+                </div>
+              )}
             </div>
           </div>
         );
