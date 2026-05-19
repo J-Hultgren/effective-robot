@@ -113,7 +113,7 @@ const CATS0=[
   {id:"ins",lbl:"Insurance",ico:"🛡️",g:"housing",def:500,rec:true},
   {id:"utl",lbl:"Electric / Water / Trash",ico:"💡",g:"housing",def:200,rec:false},
   {id:"hrep",lbl:"House Repair Fund",ico:"🔧",g:"housing",def:750,rec:false},
-  {id:"groc",lbl:"Groceries & Household",ico:"🛒",g:"family",def:2500,rec:false,split:"needs"},
+  {id:"groc",lbl:"Groceries & Household",ico:"🛒",g:"family",def:2400,rec:false,split:"needs"},
   {id:"dine",lbl:"Family Dining & Outings",ico:"🍽️",g:"family",def:1200,rec:false},
   {id:"dance",lbl:"Dance & Competition Fees",ico:"💃",g:"family",def:1020,rec:true},
   {id:"med",lbl:"Medical / Dental / Rx",ico:"💊",g:"family",def:500,rec:false,split:"needs"},
@@ -144,7 +144,7 @@ const CATS0=[
 ];
 const DEBTS0=[
   {id:"d1", name:"Avant",            bal:26375,    apr:33.1, min:1392, col:"#DEBCB5", ord:1,  catId:"p_av"},
-  {id:"d2", name:"Barclay",          bal:14970.62, apr:29,   min:2500,  col:"#C9A99A", ord:2,  catId:"p_ba"},
+  {id:"d2", name:"Barclay",          bal:14970.62, apr:29,   min:600,   col:"#C9A99A", ord:2,  catId:"p_ba"},
   {id:"d3", name:"American Express", bal:13727.08, apr:29,   min:500,  col:"#D4B8A5", ord:3,  catId:"p_ax"},
   {id:"d4", name:"SoFi",             bal:58308,    apr:26,   min:1699, col:"#E8C5C0", ord:4,  catId:"p_sf"},
   {id:"d5", name:"Upstart",          bal:40681,    apr:17,   min:1301, col:"#CFC4DC", ord:5,  catId:"p_up"},
@@ -155,7 +155,7 @@ const DEBTS0=[
   {id:"d10",name:"Citi AA",          bal:10715.38, apr:0,    min:325,  col:"#D4CABC", ord:10, catId:"p_ca"},
   {id:"d13",name:"Chase",            bal:0,        apr:20,   min:0,    col:"#C9C4DC", ord:11, catId:"p_ch"},
   {id:"d14",name:"Best Buy",         bal:0,        apr:0,    min:0,    col:"#B8C9C9", ord:12, catId:"p_bb"},
-  {id:"d11",name:"SCU Equity Loan",  bal:149589,   apr:10,   min:1000,  col:"#C9907A", ord:13, catId:""},
+  {id:"d11",name:"SCU Equity Loan",  bal:149589,   apr:7,    min:950,   col:"#C9907A", ord:13, catId:""},
   {id:"d12",name:"Mortgage",         bal:218851,   apr:2.8,  min:2500, col:"#7A9A80", ord:14, catId:"mort"},
 ];
 const ACCS0={
@@ -185,7 +185,7 @@ const DEBT_ALIASES={
   "upgrade":"p_ug","best egg":"p_be","bestegg":"p_be","affirm":"p_af","barclay":"p_ba",
   "barclays":"p_ba","citi aa":"p_ca","citi":"p_ci","mortgage":"mort",
 };
-const LEDGER_PRESETS=["TP Paycheck","XE Paycheck","Mortgage Draft","Avant","SoFi","Upstart","Upgrade","Best Egg","Affirm","Citi AA","Citi","Barclay","Amex","Dance","SCU Equity","Google Fi","Fidium","YouTube Premium","Hulu","Netflix","LFOD","EZ Pass Reload","Arlo Security","Trading","Tax Savings","House Repair","Investing","Groceries","Gas","Dining Out"];
+const LEDGER_PRESETS=["TP Paycheck","XE Paycheck","Mortgage Draft","Avant","SoFi","Upstart","Upgrade","Best Egg","Affirm","Citi AA","Citi","Barclay","Amex","Dance","SCU Equity","Google Fi","Fidium","YouTube Premium","Hulu","Netflix","LFOD","EZ Pass Reload","Arlo Security","Nespresso","Weekly Expenses","Trading","Tax Savings","House Repair","Investing","Groceries","Gas","Dining Out"];
 
 // ── Math helpers ──────────────────────────────────────────────────
 function pmts(bal,apr,pay){
@@ -279,11 +279,13 @@ async function fetchZillow(address){
 }
 
 // ── Ledger auto-transaction generator ────────────────────────────
-function generateAutoTxns(year,month,recurringDebts,incomeStreams){
+function generateAutoTxns(year,month,recurringDebts,incomeStreams,dayOverrides){
   const result=[];
   const dim=daysInMonth(year,month);
+  const overrideKey=(id)=>`${id}_${year}-${String(month+1).padStart(2,"0")}`;
   recurringDebts.filter(r=>r.active!==false).forEach(r=>{
-    const day=Math.min(parseInt(r.day)||1,dim);
+    const overrideDay=dayOverrides&&dayOverrides[overrideKey(r.id)];
+    const day=Math.min(parseInt(overrideDay||r.day)||1,dim);
     result.push({
       id:"auto-debt-"+r.id+"-"+year+"-"+month,
       date:isoDate(year,month,day),desc:r.desc,
@@ -744,6 +746,7 @@ function App(){
   const [lcReset,setLcReset]=useState(null);
   const [scuReset,setScuReset]=useState(null);
   const [recurringDebts,setRecurringDebts]=useState([]);
+  const [dayOverrides,setDayOverrides]=useState({});
   const [incomeStreams,setIncomeStreams]=useState([]);
   const [showAddTxn,setShowAddTxn]=useState(false);
   const [editTxnId,setEditTxnId]=useState(null);
@@ -834,9 +837,8 @@ function App(){
 
   // loadMonthData — runs when month/year changes. Only loads month-specific data.
   async function loadMonthData(){
-    // Immediately clear to prevent previous month data from bleeding into this month
-    setBudgets({});
-    setActuals({});
+    // Load month data without pre-clearing (prevents reset bug)
+    // State updates happen atomically after data loads
     setDpays({});
     setNotes("");
     setGoalPays({});
@@ -865,8 +867,9 @@ function App(){
   }
   async function loadLedger(){
     try{
-      const[tR,sR,rR,iR,trR]=await Promise.all([dbGet("lgr-txns"),dbGet("lgr-settings"),dbGet("lgr-recurring"),dbGet("lgr-income"),dbGet("trades-v1")]);
+      const[tR,sR,rR,iR,trR,doR]=await Promise.all([dbGet("lgr-txns"),dbGet("lgr-settings"),dbGet("lgr-recurring"),dbGet("lgr-income"),dbGet("trades-v1"),dbGet("day-overrides")]);
       if(trR?.budgets?.trades)setTrades(trR.budgets.trades);
+      if(doR?.budgets?.overrides)setDayOverrides(doR.budgets.overrides);
       if(tR?.budgets?.txns)setTxns(tR.budgets.txns);
       if(sR?.budgets){
         if(sR.budgets.lcStart!=null)setLcStart(sR.budgets.lcStart);
@@ -1059,7 +1062,7 @@ function App(){
       let m=viewMonth+offset, y=viewYear;
       while(m<0){m+=12;y--;}
       while(m>11){m-=12;y++;}
-      all.push(...generateAutoTxns(y,m,recurringDebts,incomeStreams));
+      all.push(...generateAutoTxns(y,m,recurringDebts,incomeStreams,dayOverrides));
     }
     return all;
   },[viewYear,viewMonth,recurringDebts,incomeStreams]);
@@ -1249,6 +1252,7 @@ function App(){
 
   // Trade handlers
   const sTrades=t=>sv("tr",()=>dbSet("trades-v1",{budgets:{trades:t}}));
+  const sDayOverrides=d=>sv("do",()=>dbSet("day-overrides",{budgets:{overrides:d}}));
   function addTrade(t){const l=[t,...trades];setTrades(l);sTrades(l);}
   function editTrade(t){const l=trades.map(x=>x.id===t.id?t:x);setTrades(l);sTrades(l);}
   function delTrade(id){if(!confirm("Delete trade?"))return;const l=trades.filter(x=>x.id!==id);setTrades(l);sTrades(l);}
@@ -1371,7 +1375,8 @@ function App(){
     lcReset,scuReset,onResetChange:(acct,obj)=>{if(acct==="lc"){setLcReset(obj);saveSettings(lcStart,scuStart,obj,scuReset);}else{setScuReset(obj);saveSettings(lcStart,scuStart,lcReset,obj);}},
     lastLc,lastScu,actualLastLc,actualLastScu,actualWithBal,monthSummary,monthOpeningBal,darkMode,setDarkMode,
     doExp:()=>doExport(cats,budgets,actuals,goals,assets,totDebt,viewMonth,viewYear,notes),
-    trades,addTrade,editTrade,delTrade,tradeAcctStart,
+    trades,addTrade,editTrade,delTrade,
+    dayOverrides,sDayOverrides,tradeAcctStart,
     pushEnabled,pushStatus,enablePushNotifications,disablePushNotifications,
     onRestoreDefaults,onClearActuals,onRestorePlanned,doUndo,lastUndo,pushUndo,
     planTab,setPlanTab,
@@ -2393,7 +2398,7 @@ function NetWorthTab({T,assets,onAssetVal,onAssetName,onAssetUpdate,onAddAsset,o
 }
 
 // ── Recurring Tab ─────────────────────────────────────────────────
-function RecurringTab({T,recurringDebts,addRecurring,editRecurring,delRecurring,incomeStreams,addIncome,editIncome,delIncome,cats}){
+function RecurringTab({T,recurringDebts,addRecurring,editRecurring,delRecurring,incomeStreams,addIncome,editIncome,delIncome,cats,...props}){
   const [showAddR,setShowAddR]=useState(false);
   const [showAddI,setShowAddI]=useState(false);
   const [editRI,setEditRI]=useState(null); // id of income stream being edited
@@ -2411,6 +2416,14 @@ function RecurringTab({T,recurringDebts,addRecurring,editRecurring,delRecurring,
   function startEditR(r){setEditRR(r.id);setEditRData({...r});setShowAddR(false);}
   function saveEditI(){if(!editIData.name||!editIData.amount)return;editIncome(editIData);setEditRI(null);}
   function saveEditR(){if(!editRData.desc||!editRData.amount)return;editRecurring(editRData);setEditRR(null);}
+  function setDayOverride(recurId,day){
+    const mo=props.viewMonth!==undefined?props.viewMonth:new Date().getMonth();
+    const yr=props.viewYear||new Date().getFullYear();
+    const k=recurId+"_"+yr+"-"+String(mo+1).padStart(2,"0");
+    const updated=day?{...(props.dayOverrides||{}),[k]:day}:{...(props.dayOverrides||{})};
+    if(!day)delete updated[k];
+    props.sDayOverrides&&props.sDayOverrides(updated);
+  }
 
   const inpS=(col)=>({width:"100%",padding:"7px 10px",borderRadius:9,border:`1.5px solid ${col}30`,background:T.card,color:T.text,fontSize:13,outline:"none",boxSizing:"border-box"});
   const acctBtns=(val,set,col)=>(
@@ -2537,6 +2550,14 @@ function RecurringTab({T,recurringDebts,addRecurring,editRecurring,delRecurring,
         if(editRR===r.id) return(
           <Card key={r.id} T={T} style={{padding:"13px 14px",marginBottom:8,border:`1.5px solid ${T.a}40`}}>
             <div style={{fontSize:11,color:T.a,fontWeight:700,marginBottom:8}}>Editing: {r.desc}</div>
+            <div style={{fontSize:10,color:T.lt,marginBottom:6,padding:"6px 8px",background:T.a+"08",borderRadius:8}}>
+              📅 Override this month's date only:
+              <input type="number" min="1" max="31" placeholder={r.day}
+                defaultValue={(()=>{const mo=props.viewMonth!==undefined?props.viewMonth:new Date().getMonth();const yr=props.viewYear||new Date().getFullYear();const k=r.id+"_"+yr+"-"+String(mo+1).padStart(2,"0");return props.dayOverrides&&props.dayOverrides[k]||"";})()}
+                onChange={e=>setDayOverride(r.id,e.target.value)}
+                style={{width:50,marginLeft:6,padding:"2px 6px",borderRadius:6,border:`1px solid ${T.a}40`,fontSize:11,color:T.a}}/>
+              <span style={{fontSize:9,color:T.lt,marginLeft:4}}>leave blank = use default day {r.day}</span>
+            </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:7}}>
               <input placeholder="Description" value={editRData.desc||""} onChange={e=>setEditRData(x=>({...x,desc:e.target.value}))} style={{gridColumn:"1/-1",...inpS(T.a)}}/>
               <div style={{position:"relative"}}>
@@ -2565,7 +2586,9 @@ function RecurringTab({T,recurringDebts,addRecurring,editRecurring,delRecurring,
             <Row>
               <div>
                 <div style={{fontSize:14,fontWeight:700,color:T.text}}>{r.desc}</div>
-                <div style={{fontSize:11,color:T.lt,marginTop:2}}>Day {r.day} · {r.account==="lc"?"LC":"SCU"}{r.catId?" · 📊":""}</div>
+                <div style={{fontSize:11,color:T.lt,marginTop:2}}>
+                  Day {(()=>{const k=r.id+"_"+(props.viewYear||new Date().getFullYear())+"-"+String((props.viewMonth||new Date().getMonth())+1).padStart(2,"0");return(props.dayOverrides&&props.dayOverrides[k])||r.day;})()} · {r.account==="lc"?"LC":"SCU"}{r.catId?" · 📊":""}{(()=>{const k=r.id+"_"+(props.viewYear||new Date().getFullYear())+"-"+String((props.viewMonth||new Date().getMonth())+1).padStart(2,"0");return props.dayOverrides&&props.dayOverrides[k]?" ✏️ overridden":""})()}
+                </div>
               </div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:700,color:T.danger}}>-{fmt(Math.abs(parseFloat(r.amount)||0))}</div>
